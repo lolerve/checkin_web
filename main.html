@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>打卡處理中...</title>
+  <style>
+    body {
+      background-color: #e0e0e0;
+      font-size: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      flex-direction: column;
+    }
+  </style>
+</head>
+<body>
+  <p>資料處理中，請稍候...</p>
+
+  <script>
+    // 取得 query string 中的參數
+    function getQueryParam(name) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(name) || "";
+    }
+
+    const nfcid = getQueryParam("nfcid");
+
+    // 計算距離（公尺）
+    function getDistance(lat1, lon1, lat2, lon2) {
+      function toRad(d) {
+        return d * Math.PI / 180;
+      }
+      const R = 6371000;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat / 2) ** 2 +
+                Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                Math.sin(dLon / 2) ** 2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    navigator.geolocation.getCurrentPosition(async pos => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+
+      try {
+        const res = await fetch("https://script.google.com/macros/s/AKfycbwDPMJT0ZAR0gS5xi9oUquvcKkFOwX25VWYtZhHO6jYOXw66jkatHWZEBoLJ2SRuAbeyg/exec", {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({
+            action: "createRecord",
+            nfcid: nfcid,
+            lat: lat,
+            lon: lon
+          })
+        });
+
+        const json = await res.json();
+        const { name, time, status, errorMessage } = json;
+
+        document.body.innerHTML = `
+          <p>${errorMessage || '打卡成功！'}</p>
+          <p>姓名：${name}</p>
+          <p>時間：${time}</p>
+          <p>狀態：${status}</p>
+        `;
+      } catch (err) {
+        document.body.innerHTML = `<p style="color: red;">錯誤：${err.message}</p>`;
+      }
+    }, err => {
+      document.body.innerHTML = `<p style="color: red;">無法取得定位：${err.message}</p>`;
+    }, {
+      enableHighAccuracy: true,
+      timeout: 10000
+    });
+  </script>
+</body>
+</html>
